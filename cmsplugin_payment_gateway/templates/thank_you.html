@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load cms_tags sekizai_tags %}
+
+{% block title %}Thank you for your payment{% endblock %}
+
+{% block content %}
+    {% addtoblock "css" %}
+        <style>
+            .section-content {
+                padding-top: 76px;
+            }
+
+            .btn-info {
+                background-color: #3D3E3F;
+                border-color: #3D3E3F;
+                margin: 0;
+                text-transform: uppercase;
+                border-radius: 0;
+                font-family: "Montserrat", sans-serif;
+                font-weight: 700;
+                font-size: 12px;
+                padding: 14px 28px;
+            }
+
+            .btn-info:hover, .btn-info:active,
+            .btn-info:active:hover, .btn-info:active:focus,
+            .btn-info.active:hover, .btn-info.active:focus,
+            .btn-info.active.focus {
+                background-color: #fff;
+                color: #3D3E3F;
+            }
+        </style>
+    {% endaddtoblock %}
+
+    <div class="container">
+        <div class="row">
+            <div class="col-xs-12" style="margin: 2em 0;">
+                <h2>Thank you</h2>
+                <p>Your contribution to ArtAngels will make a tangible difference for children in Africa.</p>
+                <a class="btn btn-info" href="{% url 'payment_gateway:make_payment' %}">Make a new Payment</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}

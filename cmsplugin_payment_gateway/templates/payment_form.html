@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% load cms_tags sekizai_tags %}
+
+{% block title %}Make a Payment{% endblock %}
+
+{% block content %}
+    {% addtoblock "css" %}
+        <style>
+            .section-content {
+                padding-top: 76px;
+            }
+
+            #checkout-loading {
+                text-align: center;
+                color: #9F9F9F;
+            }
+
+            #error-message .messages {
+                background-color: #892121;
+                padding-top: 1em;
+                padding-bottom: 1em;
+                color: #fff;
+            }
+
+            form label {
+                font-weight: 400;
+            }
+
+            form .hosted-field {
+                height: 48px;
+                border-bottom: 1px solid #4c4c4c;
+            }
+
+            form .input-group-addon {
+                background-color: transparent;
+                border: 0;
+            }
+
+            form .form-control {
+                border: 0;
+                box-shadow: none;
+            }
+
+            form [type=submit] {
+                background-color: #892121;
+                border-color: #892121;
+                margin: 0;
+                text-transform: uppercase;
+                border-radius: 0;
+                font-family: "Montserrat", sans-serif;
+                font-weight: 700;
+                font-size: 12px;
+                padding: 14px 28px;
+            }
+
+            form [type=submit]:hover, form [type=submit]:active,
+            form [type=submit]:active:hover, form [type=submit]:active:focus,
+            form [type=submit].active:hover, form [type=submit].active:focus,
+            form [type=submit].active.focus {
+                background-color: #fff;
+                color: #892121;
+            }
+        </style>
+    {% endaddtoblock %}
+
+    <div class="container">
+        <div class="row">
+            <div class="col-xs-12" style="margin: 2em 0;">
+                <h2 style="margin-top: 0;">Create a New Payment</h2>
+                <div id="checkout-loading">
+                    <i class="fa fa-circle-o-notch fa-spin fa-3x"></i>
+                </div>
+                <div id="error-message">
+                    {% if messages %}
+                        <ul class="messages">
+                            {% for message in messages %}
+                                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+                <form id="checkout-form" action="{% url 'payment_gateway:make_payment' %}" method="post" style="display:none;">
+                    {% csrf_token %}
+
+                    <div class="form-group" style="width: 50%;float: left;padding-right: 15px;">
+                        <label class="control-label" for="#first-name">First Name <span class="asterisk">*</span></label>
+                        <div class="hosted-field">
+                            <input class="form-control" type="text" name="first_name" id="first-name" {% if first_name %}value="{{ first_name }}"{% endif %} required>
+                        </div>
+                    </div>
+                    <div class="form-group" style="width: 50%;float: left;padding-left: 15px;">
+                        <label class="control-label" for="#last-name">Last Name <span class="asterisk">*</span></label>
+                        <div class="hosted-field">
+                            <input class="form-control" type="text" name="last_name" id="last-name" {% if last_name %}value="{{ last_name }}"{% endif %} required>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="width: 50%;float: left;padding-right: 15px;">
+                        <label class="control-label" for="#phone">Phone Number</label>
+                        <div class="hosted-field">
+                            <input class="form-control" type="tel" name="phone" id="phone" {% if phone %}value="{{ phone }}"{% endif %}>
+                        </div>
+                    </div>
+                    <div class="form-group" style="width: 50%;float: left;padding-left: 15px;">
+                        <label class="control-label" for="#email">Email</label>
+                        <div class="hosted-field">
+                            <input class="form-control" type="email" name="email" id="email" {% if email %}value="{{ email }}"{% endif %}>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="control-label" for="card-number">Card Number <span class="asterisk">*</span></label>
+                        <div class="hosted-field" id="card-number"></div>
+                    </div>
+
+                    <div class="form-group" style="width: 50%;float: left;padding-right: 15px;">
+                        <label class="control-label" for="cvv">CVV <span class="asterisk">*</span></label>
+                        <div class="hosted-field" id="cvv"></div>
+                    </div>
+                    <div class="form-group" style="width: 50%;float: left;padding-left: 15px;">
+                        <label class="control-label" for="expiration-date">Expiration Date <span class="asterisk">*</span></label>
+                        <div class="hosted-field" id="expiration-date"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="control-label" for="#payment-value">Payment Value <span class="asterisk">*</span></label>
+                        <div class="input-group hosted-field">
+                            <div class="input-group-addon">£</div>
+                            <input class="form-control" type="number" name="payment_value" id="payment-value" {% if payment_value %}value="{{ payment_value }}"{% endif %} required>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="payment_method_nonce">
+                    <button class="btn btn-primary" type="submit" disabled>Make payment</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {% addtoblock "uncompressed_js" %}
+        <!-- Load the Client component. -->
+        <script src="https://js.braintreegateway.com/web/3.13.0/js/client.min.js"></script>
+    {% endaddtoblock %}
+
+    {% addtoblock "uncompressed_js" %}
+        <!-- Load the Hosted Fields component. -->
+        <script src="https://js.braintreegateway.com/web/3.13.0/js/hosted-fields.min.js"></script>
+    {% endaddtoblock %}
+
+    {% addtoblock "js" %}
+        <script type="text/javascript">
+            window.addEventListener('load', function() {
+                var form = document.querySelector('#checkout-form');
+                var submit = form.querySelector('[type="submit"]');
+                var errorMessage = document.querySelector('#error-message');
+
+                braintree.client.create({
+                    authorization: '{{ client_token }}'
+                }, function (clientErr, clientInstance) {
+                    if (clientErr) {
+                        // FIXME Handle error in client creation
+                        document.querySelector('#checkout-loading').style.display = 'none';
+                        errorMessage.innerHTML = 'There was an error configuring the gateway. Please try again later.';
+                        return;
+                    }
+
+                    braintree.hostedFields.create({
+                        client: clientInstance,
+                        styles: {
+                            'input': {
+                                'font-size': '16px',
+                                'line-height': '2'
+                            },
+                            'input.invalid': {
+                                'color': 'red'
+                            },
+                            'input.valid': {
+                                'color': 'green'
+                            }
+                        },
+                        fields: {
+                            number: {
+                                selector: '#card-number',
+                                placeholder: '4111 1111 1111 1111'
+                            },
+                            cvv: {
+                                selector: '#cvv',
+                                placeholder: '123'
+                            },
+                            expirationDate: {
+                                selector: '#expiration-date',
+                                placeholder: '10/2019'
+                            }
+                        }
+                    }, function (hostedFieldsErr, hostedFieldsInstance) {
+                        if (hostedFieldsErr) {
+                            // FIXME Handle error in Hosted Fields creation
+                            document.querySelector('#checkout-loading').style.display = 'none';
+                            errorMessage.innerHTML = 'There was an error configuring the gateway. Please try again later.';
+                            return;
+                        }
+
+                        // Remove loading icon, show form and enable the submit button
+                        document.querySelector('#checkout-loading').style.display = 'none';
+                        form.removeAttribute('style');
+                        submit.removeAttribute('disabled');
+
+                        form.addEventListener('submit', function (event) {
+                            event.preventDefault();
+
+                            hostedFieldsInstance.tokenize(function (tokenizeErr, payload) {
+                                if (tokenizeErr) {
+                                    // FIXME Handle error in Hosted Fields tokenization
+                                    document.querySelector('#checkout-loading').style.display = 'none';
+                                    errorMessage.innerHTML = 'There was an error configuring the gateway. Please try again later.';
+                                    return;
+                                }
+
+                                // Put `payload.nonce` into the `payment_method_nonce` input, and then
+                                // submit the form.
+                                document.querySelector('input[name="payment_method_nonce"]').value = payload.nonce;
+                                form.submit();
+                            });
+                        }, false);
+                    });
+                });
+            });
+        </script>
+    {% endaddtoblock %}
+{% endblock %}
